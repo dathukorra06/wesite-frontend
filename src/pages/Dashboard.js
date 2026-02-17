@@ -12,27 +12,25 @@ const Dashboard = () => {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState("");
-  const [sortBy, setSortBy] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState("desc");
+
+  // These are used for API params but not changed by UI
+  const [statusFilter] = useState("");
+  const [priorityFilter] = useState("");
+  const [sortBy] = useState("createdAt");
+  const [sortOrder] = useState("desc");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
-  const [pageLoaded, setPageLoaded] = useState(false);
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const searchTimeout = useRef(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setPageLoaded(true), 100);
-    return () => clearTimeout(t);
-  }, []);
-
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
+
       const params = {};
       if (searchTerm) params.search = searchTerm;
       if (statusFilter) params.status = statusFilter;
@@ -41,19 +39,21 @@ const Dashboard = () => {
       params.sortOrder = sortOrder;
 
       const res = await api.get("/tasks", { params });
-      setTasks(res.data.tasks);
+      setTasks(res.data.tasks || []);
     } catch {
       toast.error("Failed to load tasks");
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, priorityFilter, sortBy, sortOrder]);
+  }, [searchTerm, sortBy, sortOrder, statusFilter, priorityFilter]);
 
   const loadStats = useCallback(async () => {
     try {
       const res = await api.get("/tasks/stats");
-      setStats(res.data.stats);
-    } catch {}
+      setStats(res.data.stats || {});
+    } catch {
+      // silent fail
+    }
   }, []);
 
   useEffect(() => {
@@ -64,8 +64,11 @@ const Dashboard = () => {
   const handleSearch = (e) => {
     const val = e.target.value;
     setSearchTerm(val);
+
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(loadTasks, 300);
+    searchTimeout.current = setTimeout(() => {
+      loadTasks();
+    }, 300);
   };
 
   const handleCreateTask = async (data) => {
@@ -76,7 +79,7 @@ const Dashboard = () => {
       await loadStats();
       setIsModalOpen(false);
       toast.success("Task created");
-    } catch (e) {
+    } catch {
       toast.error("Create failed");
     } finally {
       setModalLoading(false);
@@ -87,7 +90,9 @@ const Dashboard = () => {
     try {
       setModalLoading(true);
       const res = await api.put(`/tasks/${id}`, data);
-      setTasks((prev) => prev.map((t) => (t._id === id ? res.data.task : t)));
+      setTasks((prev) =>
+        prev.map((t) => (t._id === id ? res.data.task : t))
+      );
       await loadStats();
       setEditingTask(null);
       setIsModalOpen(false);
@@ -113,7 +118,9 @@ const Dashboard = () => {
   const handleStatusChange = async (id, status) => {
     try {
       const res = await api.put(`/tasks/${id}`, { status });
-      setTasks((prev) => prev.map((t) => (t._id === id ? res.data.task : t)));
+      setTasks((prev) =>
+        prev.map((t) => (t._id === id ? res.data.task : t))
+      );
       await loadStats();
     } catch {
       toast.error("Status update failed");
@@ -124,8 +131,6 @@ const Dashboard = () => {
     logout();
     navigate("/login");
   };
-
-  const getStatusCount = (s) => stats.byStatus?.[s] || 0;
 
   if (loading) return <div className="p-10 text-center">Loading...</div>;
 
