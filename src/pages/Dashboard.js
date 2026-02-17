@@ -9,7 +9,7 @@ import TaskModal from "../components/TaskModal";
 
 const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
-  const [stats, setStats] = useState({});
+  const [, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
